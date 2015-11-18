@@ -150,7 +150,7 @@ body {
   width: 90%;
   margin: 20px auto;
   text-align: left;
-  font-size: 0.55em;
+  font-size: 0.45em;
   font-family: monospace;
   line-height: 1.2em;
   word-wrap: break-word;
@@ -163,7 +163,7 @@ body {
   display: block;
   padding: 5px;
   overflow: auto;
-  max-height: 400px;
+  max-height: 600px;
   word-wrap: normal; }
 
 .reveal table {
@@ -212,9 +212,9 @@ body {
 .reveal a {
   color: #13DAEC;
   text-decoration: none;
-  -webkit-transition: color 0.15s ease;
-  -moz-transition: color 0.15s ease;
-  transition: color 0.15s ease; }
+  -webkit-transition: color .15s ease;
+  -moz-transition: color .15s ease;
+  transition: color .15s ease; }
 
 .reveal a:hover {
   color: #71e9f4;
@@ -239,9 +239,9 @@ body {
   box-shadow: none; }
 
 .reveal a img {
-  -webkit-transition: all 0.15s linear;
-  -moz-transition: all 0.15s linear;
-  transition: all 0.15s linear; }
+  -webkit-transition: all .15s linear;
+  -moz-transition: all .15s linear;
+  transition: all .15s linear; }
 
 .reveal a:hover img {
   background: rgba(255, 255, 255, 0.2);

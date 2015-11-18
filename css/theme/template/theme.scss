@@ -160,7 +160,7 @@ body {
 	margin: $blockMargin auto;
 
 	text-align: left;
-	font-size: 0.55em;
+	font-size: 0.45em;
 	font-family: monospace;
 	line-height: 1.2em;
 
@@ -176,7 +176,7 @@ body {
 	display: block;
 	padding: 5px;
 	overflow: auto;
-	max-height: 400px;
+	max-height: 600px;
 	word-wrap: normal;
 }
 
@@ -341,5 +341,3 @@ body {
 		   -moz-transition: width 800ms cubic-bezier(0.260, 0.860, 0.440, 0.985);
 		        transition: width 800ms cubic-bezier(0.260, 0.860, 0.440, 0.985);
 	}
-
-
