@@ -10,7 +10,9 @@ SLA - single level of abstraction. Принцип единого уровня а
 
 ### Когда не SLA?
 
-Например, вот:
+Когда уровни абстракций смешаны.
+
+### Пример
 
 ``` ruby
 # spec/features/user_marks_todo_complete_spec.rb
@@ -32,10 +34,12 @@ feature "User marks todo complete" do
 end
 ```
 
-### Как добиться?
+### Как исправить?
 
 - Корректно именовать идентификаторы
 - Выносить сложную логику в отдельные методы/функции
+
+### Исправленный пример
 
 ``` ruby
 # spec/features/user_marks_todo_complete_spec.rb
@@ -73,16 +77,99 @@ end
 
 Каждый объект должен иметь одну обязанность и эта обязанность должна быть полностью инкапсулирована в класс. Все его сервисы должны быть направлены исключительно на обеспечение этой обязанности.
 
-### Ошибки, нарушающие SRP
+### Пример без SRP:
 
-- Слишком много логики в контроллере
+``` ruby
+# app/domains/student.rb
+class Student
+  attr_accessor :first_term_home_work, :first_term_test,
+    :first_term_paper
+  attr_accessor :second_term_home_work, :second_term_test,
+    :second_term_paper
+
+  def first_term_grade
+    (first_term_home_work + first_term_test + first_term_paper) / 3
+  end
+
+  def second_term_grade
+    (second_term_home_work + second_term_test + second_term_paper) / 3
+  end
+
+end
+```
+
+### Почему не SRP?
+
+Класс `Student` содержит логику, которую можно вынести в отдельный класс `Grade`
+
+### Исправленный пример:
+
+``` ruby
+# app/domains/student.rb
+class Student
+  def initialize
+    @terms = [
+      Grade.new(:first),
+      Grade.new(:second)
+      ]
+  end
+
+  def first_term_grade
+    term(:first).grade
+  end
+
+  def second_term_grade
+    term(:second).grade
+  end
+
+  private
+
+  def term reference
+    @terms.find {|term| term.name == reference}
+  end
+end
+
+# app/domains/grade.rb
+class Grade
+  attr_reader :name, :home_work, :test, :paper
+
+  def initialize(name)
+    @name      = name
+    @home_work = 0
+    @test      = 0
+    @paper     = 0
+  end
+
+  def grade
+    (home_work + test + paper) / 3
+  end
+end
+```
+
+
+### SRP и Rails
+
 - Слишком много логики в модели
+- Слишком много логики в контроллере
 - Слишком много логики в представлении
 - Свалка из общих вспомогательных классов
 
+
 ### Как исправить?
 
-Здесь мы стараемся сокрыть реализацию, извлекая группу методов, не связанных напрямую с бизнес-логикой данного класса.
+Инкапсулируем реализацию, извлекая группу методов, не связанных напрямую с логикой данного класса в отдельные классы.
+
+
+#### Для моделей
+
+Инкапсулировать в отдельные классы все, кроме
+  * Конфигурация ActiveRecord
+  * Обертки сеттеров
+  * Обертки геттеров
+  * Scopes, finds, etc
+
+#### Исправленная модель
+
 
 #### Для контроллеров
 
@@ -92,23 +179,16 @@ end
   * Управление параметрами запроса.
   * Рендеринг/редирект.
 
-#### Для моделей
-
-Инкапсулировать в отдельные классы все, кроме
-  * Конфигурация ActiveRecord
-  * Обертки сеттеров, например, `full_name=`
-  * Обертки аксесоров, например, `full_name`
-  * Scopes, finds, etc
-
 #### Для представлений
 
-Убрать логику в декораторы или domain models.
+Убрать логику в декораторы или service models.
 
 #### Что делать со свалкой?
 
 Не захламлять проект хелперами, скорее всего их можно сгруппировать иначе:
   - В декораторы
-  - В domain models
+  - В service models
+
 
 ## Что такое DIP?
 
@@ -123,6 +203,49 @@ end
 
 - Сильная связанность классов
 
+### Пример
+
+``` ruby
+# app/domains/report.rb
+class Report  
+  def initialize
+    @body = "whatever"
+  end
+
+  def print
+    XmlFormatter.new.generate @body
+  end
+end
+# app/domains/xml_formatter.rb
+class XmlFormatter  
+  def generate(body)
+    # convert the body argument into XML
+  end
+end  
+
+```
 ### Как исправить?
 
 - Ликвидировать связанность :)
+
+### Исправленный пример
+
+``` ruby
+# app/domains/report.rb
+class Report  
+  def initialize
+    @body = "whatever"
+  end
+
+  def print(formatter)
+    formatter.generate @body
+  end
+end
+
+# app/domains/xml_formatter.rb
+class XmlFormatter  
+  def generate(body)
+    # convert the body argument into XML
+  end
+end  
+```
