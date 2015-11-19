@@ -15,7 +15,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
 
 		<link rel="stylesheet" href="css/reveal.css">
-		<link rel="stylesheet" href="css/theme/black.css" id="theme">
+		<link rel="stylesheet" href="css/theme/night.css" id="theme">
 
 		<!-- Code syntax highlighting -->
 		<link rel="stylesheet" href="lib/css/zenburn.css">
@@ -44,7 +44,7 @@
 					<h1>SLA, SRP и DIP</h1>
 					<h3>Три принципа OOD</h3>
 					<p>
-						<small>Подготовил <a href="http://github.com/bluurn">Владимир Суворов</a> / <a href="http://twitter.com/bluurn">@bluurn</a></small>
+						<small>Подготовил <a href="http://github.com/bluurn">Владимир Суворов</a></small>
 					</p>
 				</section>
 
@@ -93,6 +93,30 @@ end
 					</code></pre>
 				</section>
 				<section>
+					<h4>Плохо, не по SLA</h4>
+					<pre><code class="hljs"  contenteditable>
+(defn when-stuck
+  [conditions & children]
+  (let [events-buffer (atom [])
+        interval-state-list (partition 2 conditions)
+        max-interval (reduce max (filter integer? conditions))]
+    (fn
+      [event]
+      (swap! events-buffer conj event)
+      (let [interval-state
+            (or (->> interval-state-list
+                 (filter #(queue-stuck? (first %) @events-buffer))
+                 (last)) [60 "ok"])
+            interval (first interval-state)
+            state (last interval-state)
+            sample-events (events-in-period interval @events-buffer)
+            events-in-largest-interval (events-in-period max-interval @events-buffer)
+            new-event (make-alert-event interval state sample-events)]
+        (reset! events-buffer events-in-largest-interval)
+        (call-rescue new-event children)))))
+					</code></pre>
+				</section>
+				<section>
 					<h2>Как исправить?</h2>
 					<ul>
 						<li>Корректно именовать идентификаторы</li>
@@ -103,7 +127,6 @@ end
 				<section>
 					<h4>Что получилось?</h4>
 					<pre><code class="hljs"  contenteditable>
-# spec/features/user_marks_todo_complete_spec.rb
 feature "User marks todo complete" do
   scenario "updates todo as completed" do
     sign_in
@@ -131,6 +154,33 @@ end
 					</code></pre>
 				</section>
 				<section>
+					<h4>Что получилось?</h4>
+					<pre><code class="hljs"  contenteditable>
+(defn when-stuck
+  [labelled-intervals & children]
+  (let [events-buffer (atom [])
+        labelled-intervals (partition 2 labelled-intervals)
+        max-interval (find-max-interval labelled-intervals)]
+    (fn check-queue-for-event [event]
+      (let [events-buffer
+            (swap! events-buffer add-event-and-strip-by-interval event max-interval)
+
+            queue-stuck-for-events-buffer?
+            (partial queue-stuck? events-buffer)
+
+            [interval state]
+            (or (->> labelled-intervals
+                 (filter queue-stuck-for-events-buffer?)
+                 (last)) [60 "ok"])
+
+            sample-events (events-in-period interval events-buffer)
+
+            new-event (make-alert-event interval state sample-events)]
+
+        (call-rescue new-event children)))))
+					</code></pre>
+				</section>
+				<section>
 					<h2>Что такое SRP?</h2>
 					<p>
 						Принцип единственной обязанности (Single responsibility principle)
@@ -139,13 +189,12 @@ end
 				<section>
 					<h2>Что подразумевает?</h2>
 					<p>
-						Каждый объект должен иметь одну обязанность и эта обязанность должна быть полностью инкапсулирована в класс.
+						Каждый сущность должна иметь одну обязанность и эта обязанность должна быть инкапсулирована.
 					</p>
 				</section>
 				<section>
 					<h2>Пример без SRP</h2>
 					<pre><code class="hljs"  contenteditable>
-# app/domains/student.rb
 class Student
   attr_accessor :first_term_home_work, :first_term_test,
     :first_term_paper
@@ -164,21 +213,11 @@ end
 					</code></pre>
 				</section>
 				<section>
-					<h2>Почему?</h2>
-					<p>
-						Класс <em>Student</em> содержит логику, которую можно вынести в отдельный класс <em>Grade</em>
-					</p>
-				</section>
-				<section>
 						<h2>Исправили</h2>
 						<pre><code class="hljs"  contenteditable>
-# app/domains/student.rb
 class Student
   def initialize
-    @terms = [
-      Grade.new(:first),
-      Grade.new(:second)
-      ]
+    @terms = [ Grade.new(:first), Grade.new(:second) ]
   end
 
   def first_term_grade
@@ -191,14 +230,106 @@ class Student
 
   private
 
-  def term reference
+  def term(reference)
     @terms.find {|term| term.name == reference}
+  end
+end
+
+class Grade
+  attr_reader :name, :home_work, :test, :paper
+  def initialize(name); @name = name; end
+  def grade
+    (home_work + test + paper) / 3
   end
 end
 						</code></pre>
 				</section>
-			</div>
+				<section>
+					<h2>Теперь про Clojure</h2>
+					<pre><code class="hljs"  contenteditable>
+(defn display-records []
+  (let [records (sql/query "SELECT * FROM ...")
+        record-string (str/join "\n" (for [r records]
+        		(str (:first-name r) (:last-name r) (:id r))))]
+    (println record-string)))
+					</code></pre>
+				</section>
+				<section>
+					<h2>Теперь про Clojure</h2>
+					<pre><code class="hljs"  contenteditable>
+(defn fetch-records []
+  (sql/query "SELECT * FROM ..."))
 
+(defn record->string [record]
+  (str (:first-name record) (:last-name record) (:id record)))
+
+(defn records->string [records]
+  (str/join "\n" (map record->string records)))
+
+(defn display-records []
+  (-> (fetch-records)
+      records->string
+      println))
+					</code></pre>
+				</section>
+				<section>
+					<h2>Что такое DIP?</h2>
+					<p>
+						Принцип инверсии зависимостей (англ. Dependency Inversion Principle, DIP) —  принцип, используемый для уменьшения связанности в компьютерных программах.
+					</p>
+				</section>
+				<section>
+					<h2>А точнее?</h2>
+					<ul>
+						<li>Модули верхних уровней не должны зависеть от модулей нижних уровней. Оба типа модулей должны зависеть от абстракций.</li>
+						<li>Абстракции не должны зависеть от деталей. Детали должны зависеть от абстракций.</li>
+					</ul>
+				</section>
+				<section>
+					<h2>Разберем пример</h2>
+					<pre><code class="hljs"  contenteditable>
+class Report
+  def initialize
+    @body = "whatever"
+  end
+
+  def print
+    XmlFormatter.new.generate @body
+  end
+end
+
+class XmlFormatter
+  def generate(body)
+    # convert the body argument into XML
+  end
+end
+					</code></pre>
+				</section>
+				<section>
+					<h2>Исправили</h2>
+					<pre><code class="hljs"  contenteditable>
+class Report
+  def initialize
+    @body = "whatever"
+  end
+
+  def print(formatter)
+    formatter.generate @body
+  end
+end
+
+class XmlFormatter
+  def generate(body)
+    # convert the body argument into XML
+  end
+end
+					</code></pre>
+				</section>
+
+				<section>
+					<h1>Fin</h1>
+				</section>
+			</div>
 		</div>
 
 		<script src="lib/js/head.min.js"></script>
