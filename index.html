@@ -95,25 +95,16 @@ end
 				<section>
 					<h4>Плохо, не по SLA</h4>
 					<pre><code class="hljs"  contenteditable>
-(defn when-stuck
-  [conditions & children]
-  (let [events-buffer (atom [])
-        interval-state-list (partition 2 conditions)
-        max-interval (reduce max (filter integer? conditions))]
-    (fn
-      [event]
-      (swap! events-buffer conj event)
-      (let [interval-state
-            (or (->> interval-state-list
-                 (filter #(queue-stuck? (first %) @events-buffer))
-                 (last)) [60 "ok"])
-            interval (first interval-state)
-            state (last interval-state)
-            sample-events (events-in-period interval @events-buffer)
-            events-in-largest-interval (events-in-period max-interval @events-buffer)
-            new-event (make-alert-event interval state sample-events)]
-        (reset! events-buffer events-in-largest-interval)
-        (call-rescue new-event children)))))
+(defn instruction-for-info
+ [info instructions]
+ (let [default
+       (get instructions :default "default message not found")]
+   (or
+     (->> instructions
+       (filter (fn [[k _]] (.startsWith info (name k))))
+       first
+       last)
+     default)))
 					</code></pre>
 				</section>
 				<section>
@@ -156,28 +147,21 @@ end
 				<section>
 					<h4>Что получилось?</h4>
 					<pre><code class="hljs"  contenteditable>
-(defn when-stuck
-  [labelled-intervals & children]
-  (let [events-buffer (atom [])
-        labelled-intervals (partition 2 labelled-intervals)
-        max-interval (find-max-interval labelled-intervals)]
-    (fn check-queue-for-event [event]
-      (let [events-buffer
-            (swap! events-buffer add-event-and-strip-by-interval event max-interval)
+(defn prefix-match [target-str pairs]
+  (some
+    (fn [[k v]]
+        (if (.startsWith target-str (name k))
+            v
+            false))
+    pairs))
 
-            queue-stuck-for-events-buffer?
-            (partial queue-stuck? events-buffer)
-
-            [interval state]
-            (or (->> labelled-intervals
-                 (filter queue-stuck-for-events-buffer?)
-                 (last)) [60 "ok"])
-
-            sample-events (events-in-period interval events-buffer)
-
-            new-event (make-alert-event interval state sample-events)]
-
-        (call-rescue new-event children)))))
+(defn instruction-for-info
+ [info instructions]
+ (let [default
+       (:default instructions "default message not found")]
+   (or
+     (prefix-match info instructions)
+     default)))
 					</code></pre>
 				</section>
 				<section>
